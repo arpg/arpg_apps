@@ -3,6 +3,10 @@ project(SensorViewer)
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
+option(BUILD_SensorViewer "Build the SensorViewer application." ON)
+
+if(BUILD_SensorViewer)
+
 find_package(Calibu REQUIRED)
 find_package(HAL REQUIRED)
 find_package(Pangolin 0.1 REQUIRED)
@@ -18,10 +22,8 @@ elseif(ANDROID)
   set(NO_LINK_WHOLE_ARCHIVE_FLAG -Wl,--no-whole-archive)
 endif()
 
-if(Pangolin_FOUND)
   add_executable( SensorViewer main.cpp )
 
-  include_directories( ${HAL_DIR} )
   include_directories( ${HAL_INCLUDE_DIRS} )
   include_directories( ${Calibu_INCLUDE_DIRS} )
   include_directories( ${Pangolin_INCLUDE_DIRS} )
@@ -32,7 +34,7 @@ if(Pangolin_FOUND)
     ${Calibu_LIBRARIES}
     ${NO_LINK_WHOLE_ARCHIVE_FLAG}
     ${PROTOBUF_LIBRARY}
-    hal
      dl
      )
+
 endif()

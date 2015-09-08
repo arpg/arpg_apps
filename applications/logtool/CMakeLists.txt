@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 2.8)
 
 #include(install_package)
 
+option(BUILD_LOGTOOL "Build the Logtool application." ON)
+
+if(BUILD_LOGTOOL)
+
 find_package(HAL REQUIRED)
 find_package(GFlags)
 find_package(GLog)
@@ -26,7 +30,7 @@ include_directories(
   ${GLog_INCLUDE_DIRS}
   ${OpenCV2_INCLUDE_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}/HAL
-  ${HAL_INCLUDES}
+  ${HAL_INCLUDE_DIRS}
   ${Calibu_INCLUDE_DIRS}
   )
 target_link_libraries( logtool
@@ -34,7 +38,6 @@ target_link_libraries( logtool
     ${Calibu_LIBRARIES}
     ${GFLAGS_LIBRARIES}
     ${PROTOBUF_LIBRARY}
-    hal
 )
 
 #def_executable(logtool
@@ -44,3 +47,5 @@ target_link_libraries( logtool
 #  CONDITIONS GFLAGS_FOUND GLog_FOUND OpenCV2_FOUND
 #  PACKAGE messages
 #  )
+
+endif()
