@@ -1,4 +1,5 @@
 add_subdirectory(SensorViewer)
+add_subdirectory(SensorLogger)
 add_subdirectory(logtool)
 #add_subdirectory(TestSim)
 #add_subdirectory(AndroidLogger)
