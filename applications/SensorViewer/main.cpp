@@ -104,6 +104,11 @@ class SensorViewer {
           is_stepping_ = true;
         });
 
+    pangolin::RegisterKeyPressCallback('q', [&]() {
+      is_running_ = false;
+      pangolin::ShouldQuit();
+    });
+
     pangolin::RegisterKeyPressCallback(' ', [&]() {
         is_running_ = !is_running_;
       });
