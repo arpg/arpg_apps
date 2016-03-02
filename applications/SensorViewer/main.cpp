@@ -310,7 +310,11 @@ class SensorViewer {
     if (!has_camera_) return;
 
     hal::Msg pbMsg;
-    pbMsg.set_timestamp(hal::Tic());
+    if(images->DeviceTime()) {
+      pbMsg.set_timestamp(images->DeviceTime());
+    } else {
+      pbMsg.set_timestamp(hal::Tic());
+    }
     pbMsg.mutable_camera()->Swap(&images->Ref());
     logger_.LogMessage(pbMsg);
   }
