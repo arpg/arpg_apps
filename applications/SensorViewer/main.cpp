@@ -15,6 +15,8 @@
 #include <HAL/Messages/Logger.h>
 #include <HAL/Messages/Matrix.h>
 
+#include <iomanip>
+
 pangolin::DataLog g_PlotLogAccel;
 pangolin::DataLog g_PlotLogGyro;
 pangolin::DataLog g_PlotLogMag;
@@ -315,13 +317,10 @@ class SensorViewer {
     if (!has_camera_) return;
 
     hal::Msg pbMsg;
-    if(images->DeviceTime()) {
-      pbMsg.set_timestamp(images->DeviceTime());
-    } else {
-      pbMsg.set_timestamp(hal::Tic());
-    }
+    pbMsg.set_timestamp(hal::Tic());
     pbMsg.mutable_camera()->Swap(&images->Ref());
     logger_.LogMessage(pbMsg);
+
   }
 
   void IMU_Handler(hal::ImuMsg& IMUdata) {
@@ -341,10 +340,17 @@ class SensorViewer {
                        IMUdata.mag().data(2));
     }
 
+
     if (*logging_enabled_) {
       hal::Msg pbMsg;
       pbMsg.set_timestamp(hal::Tic());
-      pbMsg.mutable_imu()->Swap(&IMUdata);
+
+      // Copy the IMUdata to avoid passing in a reference
+      // to the IMUdata that is being read from the input
+      // stream.
+      ::hal::ImuMsg IMUdata_copy(IMUdata);
+
+      pbMsg.mutable_imu()->Swap(&IMUdata_copy);
       logger_.LogMessage(pbMsg);
     }
   }
