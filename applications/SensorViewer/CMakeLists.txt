@@ -10,7 +10,7 @@ if(BUILD_SensorViewer)
 find_package(Calibu REQUIRED)
 find_package(HAL REQUIRED)
 find_package(Pangolin 0.1 REQUIRED)
-find_package(OpenCV2 REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(Protobuf REQUIRED)
 
 include_directories(${PROTOBUF_INCLUDE_DIR})
