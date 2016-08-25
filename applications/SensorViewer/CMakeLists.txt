@@ -3,15 +3,17 @@ project(SensorViewer)
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
+find_package(HAL REQUIRED)
+find_package(Calibu)
+find_package(Pangolin)
+find_package(OpenCV )
+find_package(Protobuf )
+
+if(Calibu_FOUND AND Pangolin_FOUND AND OpenCV_FOUND AND Protobuf_FOUND )
+
 option(BUILD_SensorViewer "Build the SensorViewer application." ON)
 
-if(BUILD_SensorViewer)
-
-find_package(Calibu REQUIRED)
-find_package(HAL REQUIRED)
-find_package(Pangolin 0.1 REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(Protobuf REQUIRED)
+IF(BUILD_SensorViewer)
 
 include_directories(${PROTOBUF_INCLUDE_DIR})
 
@@ -36,5 +38,7 @@ endif()
     ${PROTOBUF_LIBRARY}
      dl
      )
+
+endif()
 
 endif()

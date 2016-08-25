@@ -1,17 +1,17 @@
 project(logtool)
 cmake_minimum_required(VERSION 2.8)
 
-#include(install_package)
-
-option(BUILD_LOGTOOL "Build the Logtool application." ON)
-
-if(BUILD_LOGTOOL)
-
 find_package(HAL REQUIRED)
 find_package(GFlags)
 find_package(GLog)
 find_package(OpenCV)
 find_package(Protobuf)
+
+if( GFlags_FOUND AND GLog_FOUND AND OpenCV_FOUND AND Protobuf_FOUND )
+
+option(BUILD_LOGTOOL "Build the Logtool application." ON)
+
+if(BUILD_LOGTOOL)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
@@ -48,4 +48,5 @@ target_link_libraries( logtool
 #  PACKAGE messages
 #  )
 
+endif()
 endif()

@@ -4,14 +4,17 @@ cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
+find_package(HAL REQUIRED)
+find_package(Node)
+find_package(GFlags)
+find_package(GLog)
+
+if(Node_FOUND AND GFLags_FOUND AND GLog_FOUND)
+
 option(BUILD_PoseToNode "Build the PoseToNode application." OFF)
 
 if(BUILD_PoseToNode)
 
-  find_package(Node REQUIRED)
-  find_package(GFlags REQUIRED)
-  find_package(GLog REQUIRED)
-  find_package(HAL REQUIRED)
 
   if(APPLE AND NOT BUILD_SHARED_LIBS)
     set(LINK_WHOLE_ARCHIVE_FLAG -Wl,-all_load)
@@ -35,4 +38,5 @@ if(BUILD_PoseToNode)
           dl
           )
   endif()
+endif()
 endif()
