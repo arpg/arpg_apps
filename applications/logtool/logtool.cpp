@@ -8,7 +8,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
 #endif
-#include <opencv.hpp>
+#include <cv.hpp>
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif

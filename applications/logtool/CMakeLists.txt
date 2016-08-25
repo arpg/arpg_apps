@@ -10,7 +10,7 @@ if(BUILD_LOGTOOL)
 find_package(HAL REQUIRED)
 find_package(GFlags)
 find_package(GLog)
-find_package(OpenCV2)
+find_package(OpenCV)
 find_package(Protobuf)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
