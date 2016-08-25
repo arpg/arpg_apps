@@ -3,13 +3,13 @@ project(SensorLogger)
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
+find_package(OpenCV)
 option(BUILD_SensorLogger "Build the SensorLogger application." ON)
 
 if(BUILD_SensorLogger)
 
 find_package(Calibu REQUIRED)
 find_package(HAL REQUIRED)
-find_package(OpenCV2 REQUIRED)
 find_package(Protobuf REQUIRED)
 
 include_directories(${PROTOBUF_INCLUDE_DIR})
