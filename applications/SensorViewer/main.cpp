@@ -36,6 +36,10 @@ class SensorViewer {
     is_running_ = false;
   }
 
+  void set_fps(int fps) {
+    fps_.reset(new pangolin::Var<int>("ui.FPS", fps, 1, 120));
+  }
+
   virtual ~SensorViewer() {}
 
   void SetupGUI() {
@@ -53,7 +57,6 @@ class SensorViewer {
     // Create panel.
     pangolin::View& panelView = pangolin::CreatePanel("ui").
         SetBounds(0, 1.0, 0, pangolin::Attach::Pix(panel_width_));
-    fps_.reset(new pangolin::Var<int>("ui.FPS", 30, 1, 120));
     limit_fps_.reset(new pangolin::Var<bool>("ui.Limit FPS", true,
                                                    true));
     logging_enabled_.reset(new pangolin::Var<bool>("ui.LOG",
@@ -408,6 +411,7 @@ int main(int argc, char* argv[]) {
   std::string posys_uri = cl_args.follow("", "-posys");
   std::string encoder_uri = cl_args.follow("","-encoder");
   std::string lidar_uri = cl_args.follow("","-lidar");
+  int fps = cl_args.follow(30, "-fps");
   bool start_paused_ = cl_args.search("-p");
 
 
@@ -423,6 +427,7 @@ int main(int argc, char* argv[]) {
   SensorViewer viewer;
   if (start_paused_)
     viewer.start_paused();
+  viewer.set_fps(fps);
   if (!cam_uri.empty()) {
     viewer.set_camera(cam_uri);
   }
