@@ -111,7 +111,6 @@ inline hal::MessageType MsgTypeForString(const std::string& str) {
   static std::map<std::string, hal::MessageType> kTypeStrings = {
     {"cam", hal::Msg_Type_Camera},
     {"imu", hal::Msg_Type_IMU},
-    {"encoder", hal::Msg_Type_Encoder},
     {"lidar", hal::Msg_Type_LIDAR},
     {"posys", hal::Msg_Type_Posys},
   };

@@ -1,7 +1,6 @@
 #include <HAL/Camera/CameraDevice.h>
 #include <HAL/IMU/IMUDevice.h>
 #include <HAL/Posys/PosysDevice.h>
-#include <HAL/Encoder/EncoderDevice.h>
 #include <HAL/LIDAR/LIDARDevice.h>
 
 #include <HAL/Utils/GetPot>
@@ -17,7 +16,7 @@ class SensorLogger {
 public:
   SensorLogger() : num_channels_(0), base_width_(0), base_height_(0),
     has_camera_(false), has_imu_(false), has_posys_(false),
-    has_encoder_(false), has_lidar_(false),
+    has_lidar_(false),
     is_running_(true), frame_number_(0),
     logger_(hal::Logger::GetInstance())
   {
@@ -104,12 +103,6 @@ public:
     has_posys_ = true;
   }
 
-  void set_encoder(const std::string& encoder_uri)
-  {
-    encoder_ = hal::Encoder(encoder_uri);
-    has_encoder_ = true;
-  }
-
   void set_lidar(const std::string& lidar_uri)
   {
     lidar_ = hal::LIDAR(lidar_uri);
@@ -128,12 +121,6 @@ protected:
       imu_.RegisterIMUDataCallback(
             std::bind(&SensorLogger::IMU_Handler, this, _1));
       std::cout << "- Registering IMU device." << std::endl;
-    }
-
-    if (has_encoder_){
-      encoder_.RegisterEncoderDataCallback(
-            std::bind(&SensorLogger::Encoder_Handler, this, _1));
-      std::cout << "- Registering Encoder device." << std::endl;
     }
 
     if (has_lidar_){
@@ -172,20 +159,6 @@ protected:
     logger_.LogMessage(pbMsg);
   }
 
-  void Encoder_Handler(hal::EncoderMsg& EncoderData) {
-    std::cout << "Encoder: ";
-    for (int ii = 0; ii < EncoderData.label_size(); ++ii) {
-      std::cout << EncoderData.label(ii) << ": " << EncoderData.data(ii) <<
-                   ", ";
-    }
-    std::cout << std::endl;
-
-    hal::Msg pbMsg;
-    pbMsg.set_timestamp(hal::Tic());
-    pbMsg.mutable_encoder()->Swap(&EncoderData);
-    logger_.LogMessage(pbMsg);
-  }
-
   void LIDAR_Handler(hal::LidarMsg& LidarData)
   {
     //std::cout << "Got LIDAR data..." << std::endl;
@@ -197,12 +170,11 @@ protected:
 
 private:
   size_t num_channels_, base_width_, base_height_;
-  bool has_camera_, has_imu_, has_posys_, has_encoder_, has_lidar_;
+  bool has_camera_, has_imu_, has_posys_, has_lidar_;
   bool is_running_;
   int frame_number_;
   hal::Camera camera_;
   hal::IMU imu_;
-  hal::Encoder encoder_;
   hal::Posys posys_;
   hal::LIDAR lidar_;
   hal::Logger& logger_;
@@ -214,7 +186,6 @@ int main(int argc, char* argv[]) {
   std::string cam_uri = cl_args.follow("", "-cam");
   std::string imu_uri = cl_args.follow("", "-imu");
   std::string posys_uri = cl_args.follow("", "-posys");
-  std::string encoder_uri = cl_args.follow("","-encoder");
   std::string lidar_uri = cl_args.follow("","-lidar");
   bool start_paused_ = cl_args.search("-p");
 
@@ -231,10 +202,6 @@ int main(int argc, char* argv[]) {
 
   if (!posys_uri.empty()) {
     logger.set_posys(posys_uri);
-  }
-
-  if (!encoder_uri.empty()) {
-    logger.set_encoder(encoder_uri);
   }
 
   if (!lidar_uri.empty()) {
