@@ -34,14 +34,12 @@ public:
     bool logging_enabled_ = true;
     RegisterCallbacks();
 
-    std::cout << "Press RETURN to stop recording and write to logfile." << std::endl;
-
     bool got_first_image = false;
     bool capture_success = false;
     std::shared_ptr<hal::ImageArray> last_images;
     for (; !should_quit_; ++frame_number_) {
-      std::cin.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
-      if (std::cin.get() == '\n') {
+      //if (std::cin.get() == '\n') {
+	if (frame_number_ > 1000) {
         std::cout << "Writing to logfile." << std::endl;
         should_quit_ = true;
       }
@@ -243,7 +241,12 @@ int main(int argc, char* argv[]) {
     logger.set_lidar(lidar_uri);
   }
 
-  std::cout << "Press the ENTER key to START recording.";
+  std::cout << "Press the RETURN key to START recording.";
+  
+  if (std::cin.get() == '\n') {
+    std::cout << "Press RETURN to stop recording and write to logfile." << std::endl;
+  }
+
   logger.Run();
 
 
