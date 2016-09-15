@@ -20,7 +20,7 @@ public:
   SensorLogger() : num_channels_(0), base_width_(0), base_height_(0),
     has_camera_(false), has_imu_(false), has_posys_(false),
     has_encoder_(false), has_lidar_(false),
-    is_running_(true), frame_number_(0), should_quit_(false),
+    is_running_(true), should_quit_(false), frame_number_(0),
     logger_(hal::Logger::GetInstance())
   {
   }
@@ -36,6 +36,7 @@ public:
   virtual ~SensorLogger() {}
 
   void launch_threads() {
+    std::cout << "Press RETURN to stop recording and write to logfile." << std::endl;
     data_handler_thread_ = run_thread();
     std::cin.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
     std::cout << "Writing to logfile." << std::endl;
@@ -49,8 +50,6 @@ public:
   void Run() {
     bool logging_enabled_ = true;
     RegisterCallbacks();
-
-    std::cout << "Press RETURN to stop recording and write to logfile." << std::endl;
 
     bool got_first_image = false;
     bool capture_success = false;
@@ -165,17 +164,17 @@ protected:
     logger_.LogMessage(pbMsg);
   }
 
-  void IMU_Handler(hal::ImuMsg& IMUdata) {
-    hal::Msg pbMsg;
-    pbMsg.set_timestamp(hal::Tic());
-    // Copy the IMUdata to avoid passing in a reference
-    // to the IMUdata that is being read from the input
-    // stream.
-    ::hal::ImuMsg IMUdata_copy(IMUdata);
+    void IMU_Handler(hal::ImuMsg& IMUdata) {
+      hal::Msg pbMsg;
+      pbMsg.set_timestamp(hal::Tic());
+      // Copy the IMUdata to avoid passing in a reference
+      // to the IMUdata that is being read from the input
+      // stream.
+      ::hal::ImuMsg IMUdata_copy(IMUdata);
 
-    pbMsg.mutable_imu()->Swap(&IMUdata_copy);
-    logger_.LogMessage(pbMsg);
-  }
+      pbMsg.mutable_imu()->Swap(&IMUdata_copy);
+      logger_.LogMessage(pbMsg);
+    }
 
   void Posys_Handler(hal::PoseMsg& PoseData) {
     std::cout << "Posys Id: " << PoseData.id() << ". Data: ";
