@@ -11,6 +11,8 @@
 #include <HAL/Messages/Logger.h>
 #include <HAL/Messages/Matrix.h>
 
+#include <iomanip>
+
 using std::placeholders::_1;
 
 class SensorLogger {
@@ -18,7 +20,7 @@ public:
   SensorLogger() : num_channels_(0), base_width_(0), base_height_(0),
     has_camera_(false), has_imu_(false), has_posys_(false),
     has_encoder_(false), has_lidar_(false),
-    is_running_(true), frame_number_(0),
+    is_running_(true), frame_number_(0), should_quit_(false),
     logger_(hal::Logger::GetInstance())
   {
   }
@@ -27,10 +29,24 @@ public:
     is_running_ = false;
   }
 
+  void should_quit( void ) {
+    should_quit_ = true;
+  }
+
   virtual ~SensorLogger() {}
 
+  void launch_threads() {
+    data_handler_thread_ = run_thread();
+    std::cin.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
+    std::cout << "Writing to logfile." << std::endl;
+    should_quit();
+    while(!data_handler_thread_.joinable()) {
+      std::this_thread::sleep_for(std::chrono::microseconds(1));
+    }
+    data_handler_thread_.join();
+  }
+
   void Run() {
-    bool should_quit_ = false;
     bool logging_enabled_ = true;
     RegisterCallbacks();
 
@@ -40,12 +56,6 @@ public:
     bool capture_success = false;
     std::shared_ptr<hal::ImageArray> last_images;
     for (; !should_quit_; ++frame_number_) {
-      std::cin.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
-      if (std::cin.get() == '\n') {
-        std::cout << "Writing to logfile." << std::endl;
-        should_quit_ = true;
-      }
-
       const bool go = is_running_;
 
       std::shared_ptr<hal::ImageArray> images = hal::ImageArray::Create();
@@ -145,7 +155,8 @@ protected:
     }
   }
 
-  void LogCamera(hal::ImageArray* images) {
+
+    void LogCamera(hal::ImageArray* images) {
     if (!has_camera_) return;
 
     hal::Msg pbMsg;
@@ -157,7 +168,12 @@ protected:
   void IMU_Handler(hal::ImuMsg& IMUdata) {
     hal::Msg pbMsg;
     pbMsg.set_timestamp(hal::Tic());
-    pbMsg.mutable_imu()->Swap(&IMUdata);
+    // Copy the IMUdata to avoid passing in a reference
+    // to the IMUdata that is being read from the input
+    // stream.
+    ::hal::ImuMsg IMUdata_copy(IMUdata);
+
+    pbMsg.mutable_imu()->Swap(&IMUdata_copy);
     logger_.LogMessage(pbMsg);
   }
 
@@ -197,11 +213,14 @@ protected:
     logger_.LogMessage(pbMsg);
   }
 
+  std::thread run_thread() { return std::thread( [=] { Run(); } ); }
+
 private:
   size_t num_channels_, base_width_, base_height_;
   bool has_camera_, has_imu_, has_posys_, has_encoder_, has_lidar_;
-  bool is_running_;
+  bool is_running_, should_quit_;
   int frame_number_;
+  std::thread data_handler_thread_;
   hal::Camera camera_;
   hal::IMU imu_;
   hal::Encoder encoder_;
@@ -223,6 +242,7 @@ int main(int argc, char* argv[]) {
   SensorLogger logger;
   if (start_paused_)
     logger.start_paused();
+
   if (!cam_uri.empty()) {
     logger.set_camera(cam_uri);
   }
@@ -243,8 +263,10 @@ int main(int argc, char* argv[]) {
     logger.set_lidar(lidar_uri);
   }
 
-  std::cout << "Press the ENTER key to START recording.";
-  logger.Run();
+  std::cout << "Press any key to START recording.";
+  getchar();
+
+  logger.launch_threads();
 
 
 }
