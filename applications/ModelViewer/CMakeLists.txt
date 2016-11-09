@@ -1,19 +1,20 @@
-project(SensorViewer)
+project(ModeViewer)
 
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
-find_package(HAL REQUIRED)
 find_package(Calibu)
-find_package(Pangolin)
-find_package(OpenCV REQUIRED)
-find_package(Protobuf REQUIRED)
+find_package(Pangolin 0.1)
+find_package(OpenCV)
+find_package(Protobuf)
+find_package(SceneGraph)
 
-if(Calibu_FOUND AND Pangolin_FOUND AND OpenCV_FOUND AND Protobuf_FOUND )
 
-option(BUILD_SensorViewer "Build the SensorViewer application." ON)
+if(Calibu_FOUND AND Pangolin_FOUND AND OpenCV_FOUND AND Protobuf_FOUND AND SceneGraph_FOUND )
 
-IF(BUILD_SensorViewer)
+option(BUILD_ModelViewer "Build the ModelViewer application." ON)
+
+if(BUILD_ModelViewer)
 
 
 if(APPLE AND NOT BUILD_SHARED_LIBS)
@@ -23,22 +24,23 @@ elseif(ANDROID)
   set(NO_LINK_WHOLE_ARCHIVE_FLAG -Wl,--no-whole-archive)
 endif()
 
-  add_executable( SensorViewer main.cpp )
+  add_executable( ModelViewer main.cpp )
 
-  include_directories( ${PROTOBUF_INCLUDE_DIR} )
-  include_directories( ${HAL_INCLUDE_DIRS} )
+  include_directories( ${Protobuf_INCLUDE_DIR} )
   include_directories( ${Calibu_INCLUDE_DIRS} )
+  include_directories( ${SceneGraph_INCLUDE_DIRS} )
   include_directories( ${Pangolin_INCLUDE_DIRS} )
-  target_link_libraries(SensorViewer
+  target_link_libraries(ModelViewer
     ${Pangolin_LIBRARIES}
+    ${SceneGraph_LIBRARIES}
     ${LINK_WHOLE_ARCHIVE_FLAG}
-    ${HAL_LIBRARIES}
     ${Calibu_LIBRARIES}
     ${NO_LINK_WHOLE_ARCHIVE_FLAG}
-    ${PROTOBUF_LIBRARY}
+    ${Protobuf_LIBRARY}
      dl
      )
 
 endif()
 
 endif()
+

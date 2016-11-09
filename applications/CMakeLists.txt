@@ -6,3 +6,5 @@ add_subdirectory(logtool)
 #add_subdirectory(gps2cartesian)
 #add_subdirectory(CamToNode)
 add_subdirectory(PoseToNode)
+add_subdirectory(ModelViewer)
+
