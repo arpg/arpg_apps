@@ -36,7 +36,7 @@ typedef struct {
 
 
 void Usage() {
-    cout << "Usage: ModelViewer filename" << endl;
+    cout << "Usage: ModelViewer filename scale" << endl;
 }
 
 size_t ppm_save(ppm_image *img, FILE *outfile) {
@@ -152,12 +152,13 @@ void Draw3DBoundingBox(){
 
 int main( int argc, char* argv[] )
 {
-    if(argc != 2) {
+    if(argc != 3) {
         Usage();
         exit(-1);
     }
 
     const std::string model_filename(argv[1]);
+    const int scale(atoi(argv[2]));
 
     // Create OpenGL window in single line thanks to GLUT
     pangolin::CreateWindowAndBind("Main",640,480);
@@ -172,11 +173,7 @@ int main( int argc, char* argv[] )
     glGraph.AddChild(&light);
 
     glGraph.AddChild(&obj_w);
-    //glGraph.AddChild(&obj_h);
     glGraph.AddChild(&obj_l);
-
-    //SceneGraph::GLGrid grid(10,1,true);
-    //glGraph.AddChild(&grid);
 
     SceneGraph::AxisAlignedBoundingBox bbox;
 
@@ -189,6 +186,11 @@ int main( int argc, char* argv[] )
       });
 
     pangolin::RegisterKeyPressCallback('s', [&]() {
+        if(!save_images_){
+          std::cerr << "saving images..." << std::endl;
+        }else{
+          std::cerr << "stopping saving images..." << std::endl;
+        }
         save_images_ = !save_images_;
       });
 
@@ -197,10 +199,9 @@ int main( int argc, char* argv[] )
     try {
         glMesh.Init(model_filename);
         glGraph.AddChild(&glMesh);
-        //TODO: this is model dependent...
-        glMesh.SetScale(212.0);
+        // this is model dependent...
+        glMesh.SetScale(scale);
         bbox = glMesh.ObjectAndChildrenBounds();
-        std::cerr << "bbox size: " << bbox.Size().transpose() << std::endl;
         std::cerr << "mesh dimentions: " << glMesh.GetDimensions().transpose() <<
                      std::endl;
         std::cerr << "mesh scale: " << glMesh.GetScale().transpose() << std::endl;
@@ -211,7 +212,7 @@ int main( int argc, char* argv[] )
     }
 #endif // HAVE_ASSIMP
 
-    sizes_file.open("sizes.txt");
+    sizes_file.open("sizes.txt", ios_base::trunc);
     sizes_file << "image, width, height"<< std::endl;
 
     const Eigen::Vector3d center = bbox.Center();
@@ -280,9 +281,9 @@ int main( int argc, char* argv[] )
 
         if (should_rotate_){
           // Pause for 1/100th of a second.
-          std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 50));
+          std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 100));
           Eigen::Vector6d pose = glMesh.GetPose();
-          // rotate approx 1 degree
+          // rotate approx 1 degree (yaw)
           pose[5] += 0.017;
           Eigen::Matrix4d Ta = glMesh.GetPose4x4_po();
           glMesh.SetPose(pose);
@@ -353,6 +354,9 @@ int main( int argc, char* argv[] )
           Draw2DBoundingBox(min, max);
           obj_w.SetText(w);
           obj_l.SetText(h);
+        }else{
+          obj_w.SetText("");
+          obj_l.SetText("");
         }
 
 
