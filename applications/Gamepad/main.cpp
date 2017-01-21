@@ -7,7 +7,7 @@ void GamepadCallback(hal::GamepadMsg& _msg) {
     std::cout << _msg.axes().data(ii) << ", ";
   }
   std::cout << "| ";
-  for(int ii=0; ii<_msg.num_axes(); ii++) {
+  for(int ii=0; ii<_msg.num_buttons(); ii++) {
     std::cout << _msg.buttons().data(ii) << ",";
   }            
   std::cout << std::endl;
