@@ -330,6 +330,10 @@ void ExtractPosys() {
 void ExtractImages() {
   static const int kNoRange = -1;
 
+  //
+  std::ofstream timestamp_file(FLAGS_out + "/timestamp.txt", std::ios_base::trunc);
+  //
+
   int frame_min = kNoRange, frame_max = kNoRange;
   std::vector<int> frames;
   Split(TrimQuotes(FLAGS_extract_frame_range), ',', &frames);
@@ -361,6 +365,9 @@ void ExtractImages() {
         const hal::ImageMsg& img_msg = cam_msg.image(ii);
         SaveImage(FLAGS_out, ii, idx, cam_msg.system_time(), img_msg);
       }
+      timestamp_file << std::fixed << std::setprecision(9) << cam_msg.system_time() << ", "
+                     << std::setprecision(9) << cam_msg.device_time()
+                     << std::endl;
       ++idx;
     }
   }
