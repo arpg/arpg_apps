@@ -1,6 +1,6 @@
 #include <pangolin/pangolin.h>
-#include <pangolin/gl/glglut.h>
-#include <pangolin/utils/timer.h>
+#include <pangolin/glglut.h>
+#include <pangolin/timer.h>
 
 #include <HAL/Camera/CameraDevice.h>
 #include <HAL/IMU/IMUDevice.h>
