@@ -11,7 +11,7 @@
 #define TrajL 4
 #define TrajR 3
 #define TrajB 2
-#define MAX_THROTTLE 60
+#define MAX_THROTTLE 0
 
 #ifdef USE_SIMULATION_CAR
 #include <spirit/spirit.h>
@@ -240,10 +240,10 @@ int main(int argc, char** argv) {
 #endif
 
     // create PIDcontroller
-    //  spPID controller;
-    //  controller.SetGainP(50);
-    //  controller.SetGainD(0.2);
-    //  controller.SetGainI(0.01);
+      spPID controller;
+      controller.SetGainP(50);
+      controller.SetGainD(0.2);
+      controller.SetGainI(0.01);
 
     // setup compass and start processing measurements
     InitializeCompass(settings_uri, cam_uri, imu_uri);
@@ -275,12 +275,11 @@ int main(int argc, char** argv) {
         double curr_area = GetArea(x,y);
         // calculate crosstrack error from trajectory
         double cte = GetCrossTrackError(x,y,curr_area);
-        std::cout << "cte is " << cte << std::endl;
+       // std::cout << "cte is " << cte << std::endl;
         // calculate control signal
         //controller.SetPlantError(cte);
         // apply control signal to the vehicle
-        //double cv = controller.GetControlOutput();
-        double cv = 0.0;
+        double cv = controller.GetControlOutput();
         // trim control signal since NinjaECU only accepts in range [-1,1]
         if(cv>1) {
             cv = 1;
@@ -353,12 +352,13 @@ void MeasurementConsumerLoop(){
 
     std::shared_ptr<hal::ImageArray> images = hal::ImageArray::Create();
 
-
+cout << "meas consumer loop." <<endl;
     while(should_capture){
 
         capture_success = false;
 
         // Capture an image
+	cout << " trying to caputre image..." <<endl;
         capture_success = camera_device.Capture(*images);
         if(!capture_success)
             std::cerr << "Image capture failed..." << std::endl;
@@ -396,6 +396,7 @@ void MeasurementConsumerLoop(){
                 imu_meas = imu_buffer.GetRange(prev_frame_time.toSec(),
                                                image_timestamp.toSec());
             }
+std::cout << " got "  << imu_meas.size() << " imu measurements..." << std::endl;
 
             std::vector<measurement>::iterator it = imu_meas.begin();
             if (!first_imu_window_)
@@ -407,18 +408,21 @@ void MeasurementConsumerLoop(){
                 if(((*it).timestamp - prev_imu_time) < 1e-4)
                     continue;
 
+cout << " adding imu meas "  << endl;
                 SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
                                               (*it).a,
                                               (*it).w);
+cout << " done adding imu mead"  << endl;
 
                 prev_imu_time = (*it).timestamp;
             }
 
             first_imu_window_ = false;
             prev_frame_time = image_timestamp;
-
+cout << " adding image to compass..." << endl;
             // Pass the image to the SLAM system
             SLAMSystem->AddImage(image_timestamp, 0, im);
+cout << " done adding image..." << endl;
         }
 
     }

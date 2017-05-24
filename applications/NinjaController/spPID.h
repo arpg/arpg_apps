@@ -1,9 +1,10 @@
 #ifndef SPPID_H__
 #define SPPID_H__
 
-#include <spirit/Types/spTypes.h>
 #include <vector>
-#include <spirit/spGeneralTools.h>
+#include <chrono>
+
+typedef std::chrono::high_resolution_clock::time_point spTimestamp;
 
 class spPID {
 public:
@@ -25,6 +26,7 @@ private:
   spTimestamp prev_error_time_;
   double curr_error_;
   spTimestamp curr_error_time_;
+  double TickTock_ms(spTimestamp tick_time,spTimestamp tock_time); 
 };
 
 #endif  // SPPID_H__
