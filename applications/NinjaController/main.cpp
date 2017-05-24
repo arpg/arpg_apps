@@ -8,11 +8,79 @@
 #include <spirit/spirit.h>
 #include <spirit/Types/spTypes.h>
 
+// COMPASS includes
+#include <compass/processing/System.h>
+#include <compass/common/ParameterReader.h>
+
 #define USE_SIMULATION_CAR
 #define TrajL 4
 #define TrajR 3
 #define TrajB 2
 #define MAX_THROTTLE 60
+
+using namespace compass;
+using namespace std;
+
+struct measurement {
+    measurement() {}
+
+    measurement(const Eigen::Matrix<double, 3, 1>& w,
+                const Eigen::Matrix<double, 3, 1>& a, const double time)
+        : w(w), a(a), timestamp(time) {
+    }
+
+    /// \brief angular rates in inertial coordinates
+    Eigen::Matrix<double, 3, 1> w;
+    /// \brief accelerations in inertial coordinates
+    Eigen::Matrix<double, 3, 1> a;
+    double timestamp;
+
+    measurement operator*(const double &rhs) const {
+        return measurement(w * rhs, a * rhs, timestamp);
+    }
+
+    measurement operator+(const measurement &rhs) const {
+        return measurement(w + rhs.w, a + rhs.a, timestamp);
+    }
+};
+
+hal::Camera camera_device;
+hal::IMU imu_device;
+std::shared_ptr<hal::Image> camera_img;
+int image_width;
+int image_height;
+compass::Time image_timestamp;
+compass::Duration imu_time_offset;
+compass::Time prev_frame_time;
+compass::InterpolationBufferT<measurement,
+double> imu_buffer;
+bool first_imu_window_ = true;
+bool use_system_time = true;
+bool should_capture = true;
+std::mutex latest_position_mutex;
+std::shared_ptr<std::thread> measurement_consumer_thread;
+struct Position{
+    position():
+        x(0.0), y(0.0){}
+    double x;
+    double y;
+};
+
+Position latest_position;
+
+compass::CompassParameters params;
+std::shared_ptr<compass::System> SLAMSystem;
+
+bool LoadDevices(string cam_uri, string imu_uri);
+bool LoadIMU(string imu_uri);
+void ImuCallback(const hal::ImuMsg &ref);
+void StateCallback(const compass::Time & t,
+                   const compass::kinematics::Transformation & T_w_v,
+                   const Eigen::Matrix<double, 9, 1> &speed_and_bias,
+                   const Eigen::Matrix<double, 3, 1> &omega_S);
+bool InitializeCompass(std::string settings, std::string cam, std::string imu);
+void MeasurementConsumerLoop();
+
 
 hal::CarCommandMsg commandMSG;
 
@@ -80,6 +148,9 @@ int main(int argc, char** argv) {
 
   // capture command line arguments
   std::string car_uri = cl_args.follow("", "-car");
+  std::string cam_uri = cl_args.follow("", "-cam");
+  std::string imu_uri = cl_args.follow("", "-imu");
+  std::string settings_uri = cl_args.follow("", "-settings");
 
   // create gamepad object
   hal::Gamepad gamepad("gamepad:/");
@@ -166,6 +237,11 @@ int main(int argc, char** argv) {
   while(1) {
 #ifdef USE_SIMULATION_CAR
     if(gui_.ShouldQuit()) {
+      // kill measurement thread
+      if(measurement_consumer_thread->joinable()){
+          should_capture = false;
+          measurement_consumer_thread->join();
+      }
       return 0;
     }
 #endif
@@ -179,6 +255,11 @@ int main(int argc, char** argv) {
     //////////////////////////
     /// VI Tracker code here
     ///
+    {
+        std::lock_guard<std::mutex>lck(latest_position_mutex);
+        x = latest_position.x;
+        y = latest_position.y;
+    }
     //////////////////////////
 #endif
     // find which area the car is in based on its position
@@ -224,3 +305,202 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
+
+bool InitializeCompass(std::string settings, std::string cam, std::string imu){
+    cout << "Initializing Compass..." << endl;
+    compass::ParameterReader param_reader(settings);
+    param_reader.GetParameters(params);
+
+    SLAMSystem = std::make_shared<compass::System>(params);
+    SLAMSystem->SetBlocking(true);
+    SLAMSystem->SetFullStateCallback(&StateCallback);
+
+    cout  << "Initializing devices..." << endl;
+    if(!LoadDevices(cam, imu)){
+        cerr << "Error loading devices.";
+        return false;
+    }
+
+    // now start collecting measurements
+    measurement_consumer_thread =
+            std::shared_ptr<std::thread>(new std::thread(&MeasurementConsumerLoop));
+
+
+    return true;
+
+}
+
+/*-------------- START MEASUREMENT CONSUMER THREADS-----------------------*/
+
+
+void MeasurementConsumerLoop(){
+
+    // Main loop
+    cv::Mat im;
+    bool capture_success = false;
+    prev_frame_time = compass::Time(0.0);
+
+    while(should_capture){
+
+        capture_success = false;
+
+        // Capture an image
+        capture_success = camera_device.Capture(*images);
+        if(!capture_success)
+            std::cerr << "Image capture failed..." << std::endl;
+
+        if (capture_success){
+
+            camera_img = images->at(0);
+            image_width = camera_img->Width();
+            image_height = camera_img->Height();
+
+            image_timestamp = compass::Time(use_system_time ?
+                                                images->Ref().system_time():
+                                                images->Ref().device_time());
+
+            if(!use_system_time){
+                image_timestamp += imu_time_offset;
+            }
+
+            std::vector<cv::Mat> cvmat_images;
+            for (int ii = 0; ii < images->Size() ; ++ii) {
+                cvmat_images.push_back(images->at(ii)->Mat());
+            }
+
+            im = cvmat_images.at(0); // just monocular for now
+
+            if(im.empty())
+            {
+                cerr << "Failed to load image." << endl;
+                return 1;
+            }
+
+            std::vector<measurement> imu_meas =
+                    imu_buffer.GetRange(prev_frame_time.toSec(),
+                                        image_timestamp.toSec());
+
+            std::vector<measurement>::iterator it = imu_meas.begin();
+            if (!first_imu_window_)
+                it++;
+
+            double prev_imu_time = -1.0;
+            for( ; it != imu_meas.end(); ++it)
+            {
+                if(((*it).timestamp - prev_imu_time) < 1e-4)
+                    continue;
+
+                SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
+                                              (*it).a,
+                                              (*it).w);
+
+                prev_imu_time = (*it).timestamp;
+            }
+
+            first_imu_window_ = false;
+            prev_frame_time = image_timestamp;
+
+            // Pass the image to the SLAM system
+            SLAMSystem->AddImage(image_timestamp, 0, im);
+        }
+
+    }
+}
+
+/*-------------- END MEASUREMENT CONSUMER THREADS-----------------------*/
+
+
+
+
+/*-------------- START LOAD DEVICES ------------------------------*/
+bool LoadDevices(std::string cam_uri, std::string imu_uri)
+{
+
+    try {
+        camera_device = hal::Camera(hal::Uri(cam_uri));
+    }
+    catch (hal::DeviceException& e) {
+        LOG(ERROR) << "Error loading camera device: " << e.what();
+        return false;
+    }
+
+    if(!LoadIMU(imu_uri))
+        return false;
+
+
+        // Capture an image so we have some IMU data.
+        std::shared_ptr<hal::ImageArray> images = hal::ImageArray::Create();
+        while (imu_buffer.elements.size() == 0) {
+            camera_device.Capture(*images);
+        }
+
+
+    if(!use_system_time){
+        imu_time_offset = compass::Duration(imu_buffer.elements.back().timestamp -
+                images->Ref().device_time());
+
+    }
+
+    return true;
+}
+
+
+
+bool LoadIMU(std::string imu_uri)
+{
+    try {
+        imu_device = hal::IMU(imu_uri);
+    }
+    catch (hal::DeviceException& e) {
+        LOG(ERROR) << "Error loading IMU device: " << e.what();
+        return false;
+    }
+
+    VLOG(3) << "registering imu callback.";
+    imu_device.RegisterIMUDataCallback(&ImuCallback);
+
+    return true;
+}
+
+void ImuCallback(const hal::ImuMsg &ref)
+{
+
+    const double timestamp = use_system_time ? ref.system_time() :
+                                                     ref.device_time();
+    Eigen::VectorXd a, w;
+    hal::ReadVector(ref.accel(), &a);
+    hal::ReadVector(ref.gyro(), &w);
+
+    measurement meas(Eigen::Vector3d(w),
+                     Eigen::Vector3d(a),
+                     timestamp);
+
+    imu_buffer.AddElement(meas);
+}
+
+/*-------------- END LOAD DEVICES ------------------------------*/
+
+
+
+/*-------------- START COMPASS STATE CALLBACKS-----------------------*/
+void StateCallback(const compass::Time & t,
+                   const compass::kinematics::Transformation & T_w_v,
+                   const Eigen::Matrix<double, 9, 1> & speed_and_bias,
+                   const Eigen::Matrix<double, 3, 1> & omega_S)
+{
+    std::cout << "position: (" << T_w_v.r()[0] << ", " <<
+              T_w_v.r()[1] << ")" << std::endl;
+
+    {
+        std::lock_guard<std::mutex>lck(latest_position_mutex);
+        latest_position.x = T_w_v.r()[0];
+        latest_position.y = T_w_v.r()[1];
+    }
+
+
+
+}
+
+/*-------------- END COMPASS STATE CALLBACKS-----------------------*/
+

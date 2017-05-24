@@ -7,19 +7,22 @@ option(BUILD_NinjaController "This controls the ninjaV3 with visual odometry fee
 
 IF(BUILD_NinjaController)
   find_package(HAL REQUIRED)
-  find_package(spirit)
+#  find_package(spirit)
   find_package(Pangolin)
+  find_package(Compass 0.1 REQUIRED)
 
   set( _INCLUDE_DIRS
     ${HAL_INCLUDE_DIRS}
-    ${spirit_INCLUDE_DIRS}
+#    ${spirit_INCLUDE_DIRS}
     ${Pangolin_INCLUDE_DIRS}
+    ${Compass_INCLUDE_DIRS}
     )
 
   set( _LIBRARIES
     ${HAL_LIBRARIES}
-    ${spirit_LIBRARIES}
+#    ${spirit_LIBRARIES}
     ${Pangolin_LIBRARIES}
+    ${Compass_LIBRARIES}
     )
   add_executable( NinjaController main.cpp )
   include_directories( ${_INCLUDE_DIRS} )
