@@ -7,6 +7,7 @@
 #include <HAL/Utils/GetPot>
 #include <spirit/spirit.h>
 #include <spirit/Types/spTypes.h>
+#include "spPID.h"
 
 #define USE_SIMULATION_CAR
 #define TrajL 4
