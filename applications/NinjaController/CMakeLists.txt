@@ -11,6 +11,9 @@ IF(BUILD_NinjaController)
   find_package(Pangolin)
   find_package(Compass 0.1 REQUIRED)
 
+LINK_DIRECTORIES(/usr/local/lib)
+
+
   set( _INCLUDE_DIRS
     ${HAL_INCLUDE_DIRS}
 #    ${spirit_INCLUDE_DIRS}

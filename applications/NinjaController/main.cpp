@@ -5,18 +5,27 @@
 #include <cmath>
 #include <thread>
 #include <HAL/Utils/GetPot>
-#include <spirit/spirit.h>
-#include <spirit/Types/spTypes.h>
 
-// COMPASS includes
-#include <compass/processing/System.h>
-#include <compass/common/ParameterReader.h>
-
-#define USE_SIMULATION_CAR
+//#define USE_SIMULATION_CAR
 #define TrajL 4
 #define TrajR 3
 #define TrajB 2
 #define MAX_THROTTLE 60
+
+#ifdef USE_SIMULATION_CAR
+#include <spirit/spirit.h>
+#include <spirit/Types/spTypes.h>
+#endif
+
+// COMPASS includes
+#include <compass/processing/System.h>
+#include <compass/common/ParameterReader.h>
+#include <HAL/Camera/CameraDevice.h>
+#include <HAL/IMU/IMUDevice.h>
+#include <HAL/Messages/Matrix.h>
+#include "InterpolationBuffer.h"
+#include <iomanip>
+
 
 using namespace compass;
 using namespace std;
@@ -60,7 +69,7 @@ bool should_capture = true;
 std::mutex latest_position_mutex;
 std::shared_ptr<std::thread> measurement_consumer_thread;
 struct Position{
-    position():
+    Position():
         x(0.0), y(0.0){}
     double x;
     double y;
@@ -229,19 +238,16 @@ int main(int argc, char** argv) {
 #endif
 
   // create PIDcontroller
-  spPID controller;
-  controller.SetGainP(50);
-  controller.SetGainD(0.2);
-  controller.SetGainI(0.01);
+//  spPID controller;
+//  controller.SetGainP(50);
+//  controller.SetGainD(0.2);
+//  controller.SetGainI(0.01);
+
+  InitializeCompass(settings_uri, cam_uri, imu_uri);
 
   while(1) {
 #ifdef USE_SIMULATION_CAR
     if(gui_.ShouldQuit()) {
-      // kill measurement thread
-      if(measurement_consumer_thread->joinable()){
-          should_capture = false;
-          measurement_consumer_thread->join();
-      }
       return 0;
     }
 #endif
@@ -268,9 +274,10 @@ int main(int argc, char** argv) {
     double cte = GetCrossTrackError(x,y,curr_area);
     std::cout << "cte is " << cte << std::endl;
     // calculate control signal
-    controller.SetPlantError(cte);
+    //controller.SetPlantError(cte);
     // apply control signal to the vehicle
-    double cv = controller.GetControlOutput();
+    //double cv = controller.GetControlOutput();
+    double cv = 0.0;
     // trim control signal since NinjaECU only accepts in range [-1,1]
     if(cv>1) {
       cv = 1;
@@ -341,6 +348,9 @@ void MeasurementConsumerLoop(){
     bool capture_success = false;
     prev_frame_time = compass::Time(0.0);
 
+    std::shared_ptr<hal::ImageArray> images = hal::ImageArray::Create();
+
+
     while(should_capture){
 
         capture_success = false;
@@ -374,7 +384,6 @@ void MeasurementConsumerLoop(){
             if(im.empty())
             {
                 cerr << "Failed to load image." << endl;
-                return 1;
             }
 
             std::vector<measurement> imu_meas =
