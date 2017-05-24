@@ -27,7 +27,7 @@ LINK_DIRECTORIES(/usr/local/lib)
     ${Pangolin_LIBRARIES}
     ${Compass_LIBRARIES}
     )
-  add_executable( NinjaController main.cpp )
+  add_executable( NinjaController main.cpp spPID.h spPID.cpp)
   include_directories( ${_INCLUDE_DIRS} )
   target_link_libraries(NinjaController
     ${_LIBRARIES}

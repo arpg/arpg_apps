@@ -5,6 +5,7 @@
 #include <cmath>
 #include <thread>
 #include <HAL/Utils/GetPot>
+#include "spPID.h"
 
 //#define USE_SIMULATION_CAR
 #define TrajL 4
