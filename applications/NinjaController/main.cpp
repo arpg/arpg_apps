@@ -244,6 +244,7 @@ int main(int argc, char** argv) {
 //  controller.SetGainD(0.2);
 //  controller.SetGainI(0.01);
 
+  // setup compass and start processing measurements
   InitializeCompass(settings_uri, cam_uri, imu_uri);
 
   while(1) {
