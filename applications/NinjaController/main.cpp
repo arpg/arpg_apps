@@ -384,7 +384,7 @@ void ConsumeMeasurements(){
         }
 
 
-        if(prev_frame_time.toSec() > 0.0){
+        //if(prev_frame_time.toSec() > 0.0){
 
             std::vector<measurement> imu_meas=
                     imu_buffer.GetRange(prev_frame_time.toSec(),
@@ -406,7 +406,7 @@ void ConsumeMeasurements(){
 
                 prev_imu_time = (*it).timestamp;
             }
-        }
+        //}
 
         first_imu_window_ = false;
         prev_frame_time = image_timestamp;
