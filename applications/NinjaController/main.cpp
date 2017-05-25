@@ -281,16 +281,16 @@ int main(int argc, char** argv) {
         double curr_area = GetArea(x,y);
         // calculate crosstrack error from trajectory
         double cte = GetCrossTrackError(x,y,curr_area);
-        // std::cout << "cte is " << cte << std::endl;
+        std::cout << "cte is " << cte << std::endl;
         // calculate control signal
         //controller.SetPlantError(cte);
         // apply control signal to the vehicle
         double cv = controller.GetControlOutput();
         // trim control signal since NinjaECU only accepts in range [-1,1]
-        if(cv>1) {
-            cv = 1;
-        } else if(cv<-1) {
-            cv = -1;
+        if(cv>0.7) {
+            cv = 0.7;
+        } else if(cv<-0.7) {
+            cv = -0.7;
         }
         // set throttle command to constant if safity area has not been passed
         double throttle_cmd;
@@ -310,6 +310,7 @@ int main(int argc, char** argv) {
         // update all affected objects in world
         gui_.Iterate(objects_);
 #else
+	std::cout << "cv is -> " << cv << std::endl;
         commandMSG.set_steering_angle(cv);
         commandMSG.set_throttle_percent(throttle_cmd);
         ninja_car.UpdateCarCommand(commandMSG);
