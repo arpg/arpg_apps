@@ -245,10 +245,10 @@ int main(int argc, char** argv) {
 #endif
 
     // create PIDcontroller
-      spPID controller;
-      controller.SetGainP(50);
-      controller.SetGainD(0.2);
-      controller.SetGainI(0.01);
+    spPID controller;
+    controller.SetGainP(50);
+    controller.SetGainD(0.2);
+    controller.SetGainI(0.01);
 
     // setup compass and start processing measurements
     InitializeCompass(settings_uri, cam_uri, imu_uri);
@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
         double curr_area = GetArea(x,y);
         // calculate crosstrack error from trajectory
         double cte = GetCrossTrackError(x,y,curr_area);
-       // std::cout << "cte is " << cte << std::endl;
+        // std::cout << "cte is " << cte << std::endl;
         // calculate control signal
         //controller.SetPlantError(cte);
         // apply control signal to the vehicle
@@ -337,9 +337,9 @@ bool InitializeCompass(std::string settings, std::string cam, std::string imu){
         return false;
     }
 
-//    // now start collecting measurements
-//    measurement_consumer_thread =
-//            std::shared_ptr<std::thread>(new std::thread(&MeasurementConsumerLoop));
+    //    // now start collecting measurements
+    //    measurement_consumer_thread =
+    //            std::shared_ptr<std::thread>(new std::thread(&MeasurementConsumerLoop));
 
 
     return true;
@@ -353,7 +353,6 @@ void ConsumeMeasurements(){
     capture_success = false;
 
     // Capture an image
-cout << " trying to caputre image..." <<endl;
     capture_success = camera_device.Capture(*images);
     if(!capture_success)
         std::cerr << "Image capture failed..." << std::endl;
@@ -384,125 +383,37 @@ cout << " trying to caputre image..." <<endl;
             cerr << "Failed to load image." << endl;
         }
 
-        std::vector<measurement> imu_meas;
 
-        {
-            std::lock_guard<std::mutex>lck(imu_buffer_mutex);
-            imu_meas = imu_buffer.GetRange(prev_frame_time.toSec(),
-                                           image_timestamp.toSec());
-        }
-std::cout << " got "  << imu_meas.size() << " imu measurements..." << std::endl;
+        if(prev_frame_time.toSec() > 0.0){
 
-        std::vector<measurement>::iterator it = imu_meas.begin();
-        if (!first_imu_window_)
-            it++;
+            std::vector<measurement> imu_meas=
+                    imu_buffer.GetRange(prev_frame_time.toSec(),
+                                        image_timestamp.toSec());
 
-        double prev_imu_time = -1.0;
-        for( ; it != imu_meas.end(); ++it)
-        {
-            if(((*it).timestamp - prev_imu_time) < 1e-4)
-                continue;
+            std::vector<measurement>::iterator it = imu_meas.begin();
+            if (!first_imu_window_)
+                it++;
 
-            SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
-                                          (*it).a,
-                                          (*it).w);
+            double prev_imu_time = -1.0;
+            for( ; it != imu_meas.end(); ++it)
+            {
+                if(((*it).timestamp - prev_imu_time) < 1e-4)
+                    continue;
 
-            prev_imu_time = (*it).timestamp;
+                SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
+                                              (*it).a,
+                                              (*it).w);
+
+                prev_imu_time = (*it).timestamp;
+            }
         }
 
         first_imu_window_ = false;
         prev_frame_time = image_timestamp;
-cout << " adding image to compass..." << endl;
         // Pass the image to the SLAM system
         SLAMSystem->AddImage(image_timestamp, 0, im);
-cout << " done adding image..." << endl;
     }
 }
-
-//void MeasurementConsumerLoop(){
-
-//    // Main loop
-//    cv::Mat im;
-//    bool capture_success = false;
-//    prev_frame_time = compass::Time(0.0);
-
-//    std::shared_ptr<hal::ImageArray> images = hal::ImageArray::Create();
-
-//cout << "meas consumer loop." <<endl;
-//    while(should_capture){
-
-//        capture_success = false;
-
-//        // Capture an image
-//	cout << " trying to caputre image..." <<endl;
-//        capture_success = camera_device.Capture(*images);
-//        if(!capture_success)
-//            std::cerr << "Image capture failed..." << std::endl;
-
-//        if (capture_success){
-
-//            camera_img = images->at(0);
-//            image_width = camera_img->Width();
-//            image_height = camera_img->Height();
-
-//            image_timestamp = compass::Time(use_system_time ?
-//                                                images->Ref().system_time():
-//                                                images->Ref().device_time());
-
-//            if(!use_system_time){
-//                image_timestamp += imu_time_offset;
-//            }
-
-//            std::vector<cv::Mat> cvmat_images;
-//            for (int ii = 0; ii < images->Size() ; ++ii) {
-//                cvmat_images.push_back(images->at(ii)->Mat());
-//            }
-
-//            im = cvmat_images.at(0); // just monocular for now
-
-//            if(im.empty())
-//            {
-//                cerr << "Failed to load image." << endl;
-//            }
-
-//            std::vector<measurement> imu_meas;
-
-//            {
-//                std::lock_guard<std::mutex>lck(imu_buffer_mutex);
-//                imu_meas = imu_buffer.GetRange(prev_frame_time.toSec(),
-//                                               image_timestamp.toSec());
-//            }
-//std::cout << " got "  << imu_meas.size() << " imu measurements..." << std::endl;
-
-//            std::vector<measurement>::iterator it = imu_meas.begin();
-//            if (!first_imu_window_)
-//                it++;
-
-//            double prev_imu_time = -1.0;
-//            for( ; it != imu_meas.end(); ++it)
-//            {
-//                if(((*it).timestamp - prev_imu_time) < 1e-4)
-//                    continue;
-
-//cout << " adding imu meas "  << endl;
-//                SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
-//                                              (*it).a,
-//                                              (*it).w);
-//cout << " done adding imu mead"  << endl;
-
-//                prev_imu_time = (*it).timestamp;
-//            }
-
-//            first_imu_window_ = false;
-//            prev_frame_time = image_timestamp;
-//cout << " adding image to compass..." << endl;
-//            // Pass the image to the SLAM system
-//            SLAMSystem->AddImage(image_timestamp, 0, im);
-//cout << " done adding image..." << endl;
-//        }
-
-//    }
-//}
 
 /*-------------- END MEASUREMENT CONSUMER THREADS-----------------------*/
 
@@ -572,7 +483,6 @@ void ImuCallback(const hal::ImuMsg &ref)
                      Eigen::Vector3d(a),
                      timestamp);
 
-    std::lock_guard<std::mutex>lck(imu_buffer_mutex);
     imu_buffer.AddElement(meas);
 }
 
