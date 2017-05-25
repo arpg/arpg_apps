@@ -368,6 +368,12 @@ void ConsumeMeasurements(){
                                             images->Ref().system_time():
                                             images->Ref().device_time());
 
+        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+        while (compass::Time(imu_buffer.end_time) < image_timestamp &&
+               std::chrono::duration_cast<std::chrono::duration<double> >(std::chrono::steady_clock::now() - t1).count() > 0.1) {
+            usleep(10);
+        }
+
         if(!use_system_time){
             image_timestamp += imu_time_offset;
         }
@@ -385,29 +391,26 @@ void ConsumeMeasurements(){
         }
 
 
-        //if(prev_frame_time.toSec() > 0.0){
+        std::vector<measurement> imu_meas=
+                imu_buffer.GetRange(prev_frame_time.toSec(),
+                                    image_timestamp.toSec());
 
-            std::vector<measurement> imu_meas=
-                    imu_buffer.GetRange(prev_frame_time.toSec(),
-                                        image_timestamp.toSec());
+        std::vector<measurement>::iterator it = imu_meas.begin();
+        if (!first_imu_window_)
+            it++;
 
-            std::vector<measurement>::iterator it = imu_meas.begin();
-            if (!first_imu_window_)
-                it++;
+        double prev_imu_time = -1.0;
+        for( ; it != imu_meas.end(); ++it)
+        {
+            if(((*it).timestamp - prev_imu_time) < 1e-4)
+                continue;
 
-            double prev_imu_time = -1.0;
-            for( ; it != imu_meas.end(); ++it)
-            {
-                if(((*it).timestamp - prev_imu_time) < 1e-4)
-                    continue;
+            SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
+                                          (*it).a,
+                                          (*it).w);
 
-                SLAMSystem->AddImuMeasurement(compass::Time((*it).timestamp),
-                                              (*it).a,
-                                              (*it).w);
-
-                prev_imu_time = (*it).timestamp;
-            }
-        //}
+            prev_imu_time = (*it).timestamp;
+        }
 
         first_imu_window_ = false;
         prev_frame_time = image_timestamp;
