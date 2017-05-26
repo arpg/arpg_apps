@@ -11,11 +11,11 @@ bool use_gamepad_ = false;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
   std::cout << "steeromg command is " << _msg.axes().data(0) << std::endl;
-  std::cout << "throttle command is " << _msg.axes().data(2)*40 << std::endl;
+  std::cout << "throttle command is " << _msg.axes().data(4)*25 << std::endl;
   // update transmit command with gamepad data
   if(use_gamepad_) {
     commandMSG.set_steering_angle(_msg.axes().data(0));
-    commandMSG.set_throttle_percent(_msg.axes().data(2)*40);
+    commandMSG.set_throttle_percent(_msg.axes().data(4)*25);
   }
 }
 
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
   hal::Car ninja_car(car_uri);
 
   // register callback to receive sensory information from the car
-  ninja_car.RegisterCarStateDataCallback(&CarSensorCallback);
+  //ninja_car.RegisterCarStateDataCallback(&CarSensorCallback);
 
   // initialize command packet
   commandMSG.set_steering_angle(0);
