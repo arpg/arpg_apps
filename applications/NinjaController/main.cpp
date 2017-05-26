@@ -21,6 +21,7 @@
 // COMPASS includes
 #include <compass/processing/System.h>
 #include <compass/common/ParameterReader.h>
+#include <compass/processing/Viewer.h>
 #include <HAL/Camera/CameraDevice.h>
 #include <HAL/IMU/IMUDevice.h>
 #include <HAL/Messages/Matrix.h>
@@ -69,8 +70,10 @@ bool use_system_time = true;
 bool should_capture = true;
 std::mutex latest_position_mutex;
 std::mutex imu_buffer_mutex;
+std::mutex debug_data_mutex;
 cv::Mat im;
 bool capture_success = false;
+compass::Viewer::DebugData controller_data;
 
 std::shared_ptr<hal::ImageArray> images = hal::ImageArray::Create();
 std::shared_ptr<std::thread> measurement_consumer_thread;
@@ -93,6 +96,7 @@ void StateCallback(const compass::Time & t,
                    const compass::kinematics::Transformation & T_w_v,
                    const Eigen::Matrix<double, 9, 1> &speed_and_bias,
                    const Eigen::Matrix<double, 3, 1> &omega_S);
+void ViewerDebugCallback(const compass::Viewer::DebugData data);
 bool InitializeCompass(std::string settings, std::string cam, std::string imu);
 //void MeasurementConsumerLoop();
 void ConsumeMeasurements();
@@ -246,6 +250,11 @@ int main(int argc, char** argv) {
 
     // create PIDcontroller
     spPID controller;
+    {
+        std::lock_guard<std::mutex>lck(debug_data_mutex);
+        // access controller data from the viewer here:
+        // controller_data.P...
+    }
     controller.SetGainP(50);
     controller.SetGainD(0.2);
     controller.SetGainI(0.01);
@@ -330,6 +339,9 @@ bool InitializeCompass(std::string settings, std::string cam, std::string imu){
     SLAMSystem = std::make_shared<compass::System>(params);
     SLAMSystem->SetBlocking(true);
     SLAMSystem->SetFullStateCallback(&StateCallback);
+    if(params.visualization.show_debug_panel){
+        SLAMSystem->SetViewerDebugCallback(&ViewerDebugCallback);
+    }
 
     cout  << "Initializing devices..." << endl;
     if(!LoadDevices(cam, imu)){
@@ -510,6 +522,14 @@ void StateCallback(const compass::Time & t,
 
 
 
+}
+
+void ViewerDebugCallback(const compass::Viewer::DebugData data){
+    //    VLOG(1) << "got viewer debug callback: P=" <<
+    //               data.P << ", " << "I=" << data.I << "D= " << data.D;
+
+    std::lock_guard<std::mutex>lck(debug_data_mutex);
+    controller_data = data;
 }
 
 /*-------------- END COMPASS STATE CALLBACKS-----------------------*/
