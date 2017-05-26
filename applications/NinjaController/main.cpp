@@ -8,10 +8,13 @@
 #include "spPID.h"
 
 //#define USE_SIMULATION_CAR
-#define TrajL 4
-#define TrajR 3
+#define TrajL 2
+#define TrajR 1.5
 #define TrajB 2
 #define MAX_THROTTLE 0
+
+#define INIT_POSE_WAIT 500
+bool USE_GAMEPAD = false;
 
 #ifdef USE_SIMULATION_CAR
 #include <spirit/spirit.h>
@@ -101,7 +104,14 @@ void ConsumeMeasurements();
 hal::CarCommandMsg commandMSG;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
-    commandMSG.set_throttle_percent(_msg.axes().data(2)*40);
+    if(_msg.buttons().data(0)) {  // corresponds to green A button
+    	USE_GAMEPAD = false;
+    } else {
+	USE_GAMEPAD = true;
+        commandMSG.set_throttle_percent(_msg.axes().data(4)*25);
+	commandMSG.set_steering_angle(-_msg.axes().data(9));
+    }
+    cout << "use_gamepad is " << USE_GAMEPAD << endl;
 }
 
 int GetArea(double x, double y) {
@@ -246,12 +256,18 @@ int main(int argc, char** argv) {
 
     // create PIDcontroller
     spPID controller;
-    controller.SetGainP(50);
-    controller.SetGainD(0.2);
-    controller.SetGainI(0.01);
+    controller.SetGainP(100);
+    controller.SetGainD(10.0);
+    controller.SetGainI(0.0);
 
     // setup compass and start processing measurements
     InitializeCompass(settings_uri, cam_uri, imu_uri);
+    // capture some initial poses until VI pipeline is stable
+    for(int ii=0; ii<INIT_POSE_WAIT; ii++) {
+        ConsumeMeasurements();
+        std::lock_guard<std::mutex>lck(latest_position_mutex);
+        std::cout << "(x , y) -> (" << -latest_position.y << " , " << latest_position.x << ")" << std::endl;
+    }
 
     while(1) {
 #ifdef USE_SIMULATION_CAR
@@ -272,8 +288,9 @@ int main(int argc, char** argv) {
         {
             ConsumeMeasurements();
             std::lock_guard<std::mutex>lck(latest_position_mutex);
-            x = latest_position.x;
-            y = latest_position.y;
+            x = -latest_position.y;
+            y = latest_position.x;
+            std::cout << "(x , y) -> (" << x << " , " << y << ")" << std::endl;
         }
         //////////////////////////
 #endif
@@ -283,20 +300,21 @@ int main(int argc, char** argv) {
         double cte = GetCrossTrackError(x,y,curr_area);
         std::cout << "cte is " << cte << std::endl;
         // calculate control signal
-        //controller.SetPlantError(cte);
+        controller.SetPlantError(cte);
         // apply control signal to the vehicle
         double cv = controller.GetControlOutput();
         // trim control signal since NinjaECU only accepts in range [-1,1]
-        if(cv>0.7) {
-            cv = 0.7;
-        } else if(cv<-0.7) {
-            cv = -0.7;
+        if(cv>0.6) {
+            cv = 0.6;
+        } else if(cv<-0.6) {
+            cv = -0.6;
         }
         // set throttle command to constant if safity area has not been passed
         double throttle_cmd;
         if(curr_area == -1) {
             // if safity area passed then stop vehicle
             throttle_cmd = 0;
+	    cv = 0;
         } else {
             throttle_cmd = MAX_THROTTLE;
         }
@@ -311,9 +329,11 @@ int main(int argc, char** argv) {
         gui_.Iterate(objects_);
 #else
 	std::cout << "cv is -> " << cv << std::endl;
-        commandMSG.set_steering_angle(cv);
-        commandMSG.set_throttle_percent(throttle_cmd);
-        ninja_car.UpdateCarCommand(commandMSG);
+	if(!USE_GAMEPAD) {
+            commandMSG.set_steering_angle(cv);
+            commandMSG.set_throttle_percent(throttle_cmd);
+        }
+	ninja_car.UpdateCarCommand(commandMSG);
 #endif
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -445,7 +465,9 @@ bool LoadDevices(std::string cam_uri, std::string imu_uri)
     while (imu_buffer.elements.size() == 0) {
         camera_device.Capture(*images);
     }
-
+for(int i = 0; i < 10; ++i){
+	camera_device.Capture(*images);
+}
 
     if(!use_system_time){
         imu_time_offset = compass::Duration(imu_buffer.elements.back().timestamp -
@@ -500,9 +522,8 @@ void StateCallback(const compass::Time & t,
                    const Eigen::Matrix<double, 9, 1> & speed_and_bias,
                    const Eigen::Matrix<double, 3, 1> & omega_S)
 {
-    std::cout << "position: (" << T_w_v.r()[0] << ", " <<
-                 T_w_v.r()[1] << ")" << std::endl;
-
+    //std::cout << "position: (" << T_w_v.r()[0] << ", " <<
+    //             T_w_v.r()[1] << ")" << std::endl;
     {
         std::lock_guard<std::mutex>lck(latest_position_mutex);
         latest_position.x = T_w_v.r()[0];

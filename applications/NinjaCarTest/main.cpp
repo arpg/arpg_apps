@@ -10,11 +10,11 @@ hal::CarCommandMsg commandMSG;
 bool use_gamepad_ = false;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
-  std::cout << "steeromg command is " << _msg.axes().data(0) << std::endl;
+  std::cout << "steeromg command is " << -_msg.axes().data(0) << std::endl;
   std::cout << "throttle command is " << _msg.axes().data(4)*25 << std::endl;
   // update transmit command with gamepad data
   if(use_gamepad_) {
-    commandMSG.set_steering_angle(_msg.axes().data(0));
+    commandMSG.set_steering_angle(-_msg.axes().data(0));
     commandMSG.set_throttle_percent(_msg.axes().data(4)*25);
   }
 }
