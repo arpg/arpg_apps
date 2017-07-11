@@ -2,6 +2,7 @@
 #include <HAL/IMU/IMUDevice.h>
 #include <HAL/Posys/PosysDevice.h>
 #include <HAL/LIDAR/LIDARDevice.h>
+#include <HAL/Signal/SignalDevice.h>
 
 #include <HAL/Utils/GetPot>
 #include <HAL/Utils/TicToc.h>
@@ -18,7 +19,7 @@ class SensorLogger {
 public:
   SensorLogger() : num_channels_(0), base_width_(0), base_height_(0),
     has_camera_(false), has_imu_(false), has_posys_(false),
-    has_encoder_(false), has_lidar_(false),
+    has_encoder_(false), has_lidar_(false), has_signal_(false),
     is_running_(true), should_quit_(false), frame_number_(0),
     logger_(hal::Logger::GetInstance())
   {
@@ -120,6 +121,11 @@ public:
     has_lidar_ = true;
   }
 
+  void set_signal(const std::string& signal_url) {
+    signal_ = hal::Signal(signal_url);
+    has_signal_ = true;
+  }
+
 protected:
   void RegisterCallbacks() {
     if (has_posys_) {
@@ -138,6 +144,12 @@ protected:
       lidar_.RegisterLIDARDataCallback(
             std::bind(&SensorLogger::LIDAR_Handler, this, _1));
       std::cout << "- Registering LIDAR device." << std::endl;
+    }
+
+    if (has_signal_){
+      signal_.RegisterSignalDataCallback(
+          std::bind(&SensorLogger::Signal_Handler, this, _1));
+      std::cout << "- Registering signal device." << std::endl;
     }
   }
 
@@ -185,11 +197,20 @@ protected:
     logger_.LogMessage(pbMsg);
   }
 
+  void Signal_Handler(hal::SignalMsg& SignalData)
+  {
+    hal::Msg pbMsg;
+    pbMsg.set_timestamp(hal::Tic());
+    pbMsg.mutable_signal()->Swap(&SignalData);
+    logger_.LogMessage(pbMsg);
+  }
+
   std::thread run_thread() { return std::thread( [=] { Run(); } ); }
 
 private:
   size_t num_channels_, base_width_, base_height_;
-  bool has_camera_, has_imu_, has_posys_, has_encoder_, has_lidar_;
+  bool has_camera_, has_imu_, has_posys_, has_encoder_, has_lidar_,
+       has_signal_;
   bool is_running_, should_quit_;
   int frame_number_;
   std::thread data_handler_thread_;
@@ -197,6 +218,7 @@ private:
   hal::IMU imu_;
   hal::Posys posys_;
   hal::LIDAR lidar_;
+  hal::Signal signal_;
   hal::Logger& logger_;
 };
 
@@ -207,6 +229,7 @@ int main(int argc, char* argv[]) {
   std::string imu_uri = cl_args.follow("", "-imu");
   std::string posys_uri = cl_args.follow("", "-posys");
   std::string lidar_uri = cl_args.follow("","-lidar");
+  std::string signal_uri = cl_args.follow("","-signal");
   bool start_paused_ = cl_args.search("-p");
 
   SensorLogger logger;
@@ -227,6 +250,10 @@ int main(int argc, char* argv[]) {
 
   if (!lidar_uri.empty()) {
     logger.set_lidar(lidar_uri);
+  }
+
+  if (!signal_uri.empty()) {
+    logger.set_signal(signal_uri);
   }
 
   std::cout << "Press any key to START recording.";
