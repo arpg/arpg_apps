@@ -35,6 +35,7 @@
 DEFINE_string(in, "", "Input log file or input directory.");
 DEFINE_string(out, "", "Output log file or output directory.");
 
+DEFINE_bool(info, false, "Show basic info about log file.");
 DEFINE_bool(extract_log, false, "Enable log subset extraction.");
 DEFINE_bool(extract_images, false, "Enable image extraction to individual files.");
 DEFINE_bool(extract_imu, false, "Enable IMU extraction to individual files.");
@@ -452,16 +453,62 @@ void CatLogs() {
   }
 }
 
+void Info() {
+  hal::Reader reader(FLAGS_in);
+  reader.EnableAll();
+
+  double min_timestamp = DBL_MAX;
+  double max_timestamp = -DBL_MAX;
+  std::unique_ptr<hal::Msg> msg;
+  unsigned int n_camera_msgs = 0;
+  unsigned int n_imu_msgs = 0;
+  unsigned int n_pose_msgs = 0;
+  unsigned int n_lidar_msgs = 0;
+  unsigned int n_gamepad_msgs = 0;
+  unsigned int n_command_msgs = 0;
+  unsigned int n_vehicle_state_msgs = 0;
+  //unsigned int n_signal_msgs = 0;
+
+  while ((msg = reader.ReadMessage())) {
+    if (msg->timestamp() < min_timestamp) {
+      min_timestamp = msg->timestamp();
+    }
+    if (msg->timestamp() > max_timestamp) {
+      max_timestamp = msg->timestamp();
+    }
+    n_camera_msgs += msg->has_camera();
+    n_imu_msgs += msg->has_imu();
+    n_pose_msgs += msg->has_pose();
+    n_lidar_msgs += msg->has_lidar();
+    n_gamepad_msgs += msg->has_gamepad();
+    n_command_msgs += msg->has_command();
+    n_vehicle_state_msgs += msg->has_vehicle_state();
+    //n_signal_msgs += msg->has_signal();
+  }
+
+  std::cout << "Camera messages:    " << n_camera_msgs << std::endl;
+  std::cout << "IMU messages:       " << n_imu_msgs << std::endl;
+  std::cout << "Pose messages:      " << n_pose_msgs << std::endl;
+  std::cout << "Lidar messages:     " << n_lidar_msgs << std::endl;
+  std::cout << "Gamepad messages:   " << n_gamepad_msgs << std::endl;
+  std::cout << "Command messages:   " << n_command_msgs << std::endl;
+  std::cout << "Car state messages: " << n_vehicle_state_msgs << std::endl;
+  //std::cout << "Signal messages:    " << n_signal_msgs << std::endl;
+}
+
 int main(int argc, char *argv[]) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
   if (FLAGS_extract_log + FLAGS_extract_images + FLAGS_extract_imu +
-      + FLAGS_extract_posys + !FLAGS_cat_logs.empty() != 1) {
+      + FLAGS_extract_posys + !FLAGS_cat_logs.empty() + FLAGS_info != 1) {
     LOG(FATAL) << "Must choose one logtool task.";
   }
 
-  if (FLAGS_extract_log) {
+  if (FLAGS_info) {
+    CHECK(!FLAGS_in.empty()) << "Input file required for info.";
+    Info();
+  } else if (FLAGS_extract_log) {
     CHECK(!FLAGS_in.empty()) << "Input file required for extraction.";
     CHECK(!FLAGS_out.empty()) << "Output file required for extraction.";
     ExtractLog();
