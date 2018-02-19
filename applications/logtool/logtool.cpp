@@ -467,7 +467,7 @@ void Info() {
   unsigned int n_gamepad_msgs = 0;
   unsigned int n_command_msgs = 0;
   unsigned int n_vehicle_state_msgs = 0;
-  //unsigned int n_signal_msgs = 0;
+  unsigned int n_signal_msgs = 0;
 
   while ((msg = reader.ReadMessage())) {
     if (msg->timestamp() < min_timestamp) {
@@ -483,7 +483,7 @@ void Info() {
     n_gamepad_msgs += msg->has_gamepad();
     n_command_msgs += msg->has_command();
     n_vehicle_state_msgs += msg->has_vehicle_state();
-    //n_signal_msgs += msg->has_signal();
+    n_signal_msgs += msg->has_signal();
   }
 
   std::cout << "Camera messages:    " << n_camera_msgs << std::endl;
@@ -493,7 +493,7 @@ void Info() {
   std::cout << "Gamepad messages:   " << n_gamepad_msgs << std::endl;
   std::cout << "Command messages:   " << n_command_msgs << std::endl;
   std::cout << "Car state messages: " << n_vehicle_state_msgs << std::endl;
-  //std::cout << "Signal messages:    " << n_signal_msgs << std::endl;
+  std::cout << "Signal messages:    " << n_signal_msgs << std::endl;
 }
 
 int main(int argc, char *argv[]) {
