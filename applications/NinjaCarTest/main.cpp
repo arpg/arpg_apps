@@ -70,7 +70,9 @@ int main(int argc, char** argv) {
   use_posys_ = cl_args.search("-posys");
   std::string mocap_uri = cl_args.next("vicon://tracker:[ninja]");
   hal::Posys mocap(mocap_uri);
-  mocap.RegisterPosysDataCallback(&PosysCallback);
+  if (use_posys_) {
+    mocap.RegisterPosysDataCallback(&PosysCallback);
+  }
 
   // Connect to NinjaV3Car
   // sample uri -> "ninja_v3:[baud=115200,dev=/dev/cu.usbserial-00002014A]//
