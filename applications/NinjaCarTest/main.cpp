@@ -2,12 +2,14 @@
 #include <HAL/Gamepad/GamepadDevice.h>
 #include <HAL/Car.pb.h>
 #include <HAL/Car/CarDevice.h>
+#include <HAL/Posys/PosysDevice.h>
 #include <cmath>
 #include <thread>
 #include <HAL/Utils/GetPot>
 
 hal::CarCommandMsg commandMSG;
 bool use_gamepad_ = false;
+bool use_posys_ = false;
 bool forward_ = true;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
@@ -34,6 +36,24 @@ void CarSensorCallback(hal::CarStateMsg msg) {
   std::cout << "state data received" << msg.steer_angle() << std::endl;
 }
 
+void PosysCallback(hal::PoseMsg& PoseData) {
+  // do something with PoseData.pose():
+  //   translation (x, y, z): PoseData.pose().data(0, 1, 2)
+  //   rotation (quaternion): PoseData.pose().data(3, 4, 5, 6)
+  //                          (6 is real component)
+  if (PoseData.device_time() - last_print > 0.1) {
+    last_print = PoseData.device_time();
+    std::cout <<
+      PoseData.device_time() << ", " <<
+      PoseData.pose().data(0) << ", " <<
+      PoseData.pose().data(1) << ", " <<
+      PoseData.pose().data(2) << "; " <<
+      PoseData.pose().data(3) << ", " <<
+      PoseData.pose().data(4) << ", " <<
+      PoseData.pose().data(5) << ", " <<
+      PoseData.pose().data(6) << std::endl;
+  }
+}
 
 int main(int argc, char** argv) {
   GetPot cl_args(argc, argv);
@@ -44,6 +64,12 @@ int main(int argc, char** argv) {
   hal::Gamepad gamepad("gamepad:/");
   // register gamepad event callback
   gamepad.RegisterGamepadDataCallback(&GamepadCallback);
+
+  // Connect to motion capture
+  use_posys_ = cl_args.search("-posys");
+  std::string mocap_uri = cl_args.next("vicon://tracker:[ninja]");
+  hal::Posys mocap(mocap_uri);
+  mocap.RegisterPosysDataCallback(&PosysCallback);
 
   // Connect to NinjaV3Car
   // sample uri -> "ninja_v3:[baud=115200,dev=/dev/cu.usbserial-00002014A]//
