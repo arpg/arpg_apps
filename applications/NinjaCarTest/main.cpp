@@ -11,6 +11,7 @@ hal::CarCommandMsg commandMSG;
 bool use_gamepad_ = false;
 bool use_posys_ = false;
 bool forward_ = true;
+double last_print_ = 0.;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
   std::cout << "steeromg command is " << _msg.axes().data(0) << std::endl;
@@ -41,8 +42,8 @@ void PosysCallback(hal::PoseMsg& PoseData) {
   //   translation (x, y, z): PoseData.pose().data(0, 1, 2)
   //   rotation (quaternion): PoseData.pose().data(3, 4, 5, 6)
   //                          (6 is real component)
-  if (PoseData.device_time() - last_print > 0.1) {
-    last_print = PoseData.device_time();
+  if (PoseData.device_time() - last_print_ > 0.1) {
+    last_print_ = PoseData.device_time();
     std::cout <<
       PoseData.device_time() << ", " <<
       PoseData.pose().data(0) << ", " <<
