@@ -23,7 +23,8 @@ void GamepadCallback(hal::GamepadMsg& _msg) {
 
     // set throttle
     float throttle = (_msg.axes().data(2)+1)/2;
-    commandMSG.set_throttle_percent(throttle * 30 * (forward_ ? 1. : -.5));
+    commandMSG.set_throttle_percent(throttle * 30 * (forward_ ? 1. : -.5) *
+        (-1. /*hack to correct for forward/backward error*/));
   }
 }
 
