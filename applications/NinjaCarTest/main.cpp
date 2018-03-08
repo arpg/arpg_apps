@@ -15,7 +15,8 @@ void GamepadCallback(hal::GamepadMsg& _msg) {
   std::cout << "throttle command is " << _msg.axes().data(2)*40 << std::endl;
   // update transmit command with gamepad data
   if(use_gamepad_) {
-    commandMSG.set_steering_angle(_msg.axes().data(0));
+    commandMSG.set_steering_angle(_msg.axes().data(0) *
+        (-1.)); // maybe another hack?
     // change gears only when the throttle is at 0
     if ((fabs(_msg.axes().data(2) + 1) < 1e-4) && _msg.buttons().data(0) == 1) {
       forward_ = !forward_;
@@ -24,7 +25,7 @@ void GamepadCallback(hal::GamepadMsg& _msg) {
     // set throttle
     float throttle = (_msg.axes().data(2)+1)/2;
     commandMSG.set_throttle_percent(throttle * 30 * (forward_ ? 1. : -.5) *
-        (-1. /*hack to correct for forward/backward error*/));
+        (-1.)); // hack to correct for forward/backward error
   }
 }
 
