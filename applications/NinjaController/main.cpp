@@ -15,6 +15,8 @@
 #define TrajB 2
 #define MAX_THROTTLE 60
 
+#define SPIRITGUI_PARAM_FILE     "PangolinGuiParams.cfg"
+
 hal::CarCommandMsg commandMSG;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
@@ -141,6 +143,8 @@ int main(int argc, char** argv) {
   simcar_param.chassis_mass = 5;
   simcar_param.steering_servo_lower_limit = -SP_PI_QUART;
   simcar_param.steering_servo_upper_limit = SP_PI_QUART;
+  simcar_param.steering_servo_max_velocity = 100;
+  simcar_param.steering_servo_torque = 100;
   // create a car with parameters above
   spObjectHandle car_handle = objects_.CreateVehicle(simcar_param);
   gui_.AddObject(objects_.GetObject(car_handle));
@@ -152,8 +156,6 @@ int main(int argc, char** argv) {
   // set current engine torques and fix back steering angle
   simcar.SetEngineTorque(20);
   simcar.SetEngineMaxVel(50);
-  simcar.SetSteeringServoMaxVel(100);
-  simcar.SetSteeringServoTorque(100);
   simcar.SetRearSteeringAngle(0);
   // now car is ready to drive
 #endif
