@@ -100,8 +100,18 @@ void ConsumeMeasurements();
 
 hal::CarCommandMsg commandMSG;
 
+double gamepad_steering = 0;
+double gamepad_throttle = 0;
+bool flag_auto = false;
+
 void GamepadCallback(hal::GamepadMsg& _msg) {
-    commandMSG.set_throttle_percent(_msg.axes().data(2)*40);
+  gamepad_steering = -_msg.axes().data(0);
+  gamepad_throttle = _msg.axes().data(4)*30;
+  if(_msg.buttons().data(5)){
+      flag_auto = true;
+  } else {
+      flag_auto = false;
+  }
 }
 
 int GetArea(double x, double y) {
@@ -310,9 +320,15 @@ int main(int argc, char** argv) {
         // update all affected objects in world
         gui_.Iterate(objects_);
 #else
-	std::cout << "cv is -> " << cv << std::endl;
-        commandMSG.set_steering_angle(cv);
-        commandMSG.set_throttle_percent(throttle_cmd);
+        std::cout << "cv is -> " << cv << std::endl;
+        if(flag_auto) {
+          commandMSG.set_steering_angle(cv);
+          commandMSG.set_throttle_percent(gamepad_throttle);
+        } else {
+          commandMSG.set_steering_angle(gamepad_steering);
+          commandMSG.set_throttle_percent(gamepad_throttle);
+        }
+
         ninja_car.UpdateCarCommand(commandMSG);
 #endif
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
