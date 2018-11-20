@@ -553,8 +553,8 @@ void StateCallback(const compass::Time & t,
     //             T_w_v.r()[1] << ")" << std::endl;
     {
         std::lock_guard<std::mutex>lck(latest_position_mutex);
-        latest_position.x = T_w_v.r()[0];
-        latest_position.y = T_w_v.r()[1];
+        latest_position.x = -T_w_v.r()[1];
+        latest_position.y = -T_w_v.r()[2];
     }
 
 
