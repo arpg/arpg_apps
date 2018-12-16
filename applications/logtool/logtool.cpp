@@ -1,5 +1,6 @@
 #include <iomanip>
 #include <unistd.h>
+#include <functional>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
