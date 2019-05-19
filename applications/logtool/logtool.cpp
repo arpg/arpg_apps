@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include <iomanip>
+#include <functional>
 
 #ifdef __clang__
 #pragma clang diagnostic push
