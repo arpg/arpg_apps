@@ -10,18 +10,19 @@ hal::CarCommandMsg commandMSG;
 bool use_gamepad_ = false;
 
 void GamepadCallback(hal::GamepadMsg& _msg) {
-  std::cout << "steeromg command is " << _msg.axes().data(0) << std::endl;
-  std::cout << "throttle command is " << _msg.axes().data(4)*40 << std::endl;
+  std::cout << "steeromg command is " << _msg.axes().data(2) << std::endl;
+  std::cout << "throttle command is " << _msg.axes().data(1)*20 << std::endl;
   // update transmit command with gamepad data
   if(use_gamepad_) {
     commandMSG.set_steering_angle(_msg.axes().data(0));
-    commandMSG.set_throttle_percent(_msg.axes().data(4)*40);
+    commandMSG.set_rear_steering_angle(_msg.axes().data(2));
+    commandMSG.set_throttle_percent(_msg.axes().data(1)*40);
   }
 }
 
 void CarSensorCallback(hal::CarStateMsg msg) {
   // here is an example of how to read data from the car
-  std::cout << "state data received" << msg.steer_angle() << std::endl;
+  std::cout << "state data received: " << msg.batt_volt() << std::endl;
 }
 
 
@@ -37,7 +38,7 @@ int main(int argc, char** argv) {
 
   // Connect to NinjaV3Car
   // sample uri -> "ninja_v3:[baud=115200,dev=/dev/cu.usbserial-00002014A]//
-  hal::Car ninja_car(car_uri);
+  hal::Car ninja_car("ninja_v3:[baud=115200,dev=/dev/ttyUSB0]");
 
   // register callback to receive sensory information from the car
   ninja_car.RegisterCarStateDataCallback(&CarSensorCallback);
@@ -61,7 +62,7 @@ int main(int argc, char** argv) {
     }
     // keep updating transmit buffer
     ninja_car.UpdateCarCommand(commandMSG);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   return 0;
 }
