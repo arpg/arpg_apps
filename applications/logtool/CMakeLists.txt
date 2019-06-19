@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8)
 find_package(HAL REQUIRED)
 find_package(GFlags)
 find_package(GLog)
-find_package(OpenCV)
+find_package(OpenCV REQUIRED)
 find_package(Protobuf)
 
 if( GFlags_FOUND AND GLog_FOUND AND OpenCV_FOUND AND Protobuf_FOUND )
@@ -13,6 +13,9 @@ option(BUILD_LOGTOOL "Build the Logtool application." ON)
 
 if(BUILD_LOGTOOL)
 
+if(OpenCV_VERSION VERSION_LESS "3.0")
+  add_compile_definitions(WITH_OPENCV2)
+endif()
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 
