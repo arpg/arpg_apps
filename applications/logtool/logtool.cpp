@@ -1,9 +1,10 @@
-#include <iomanip>
-#include <unistd.h>
-#include <functional>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <iomanip>
+#include <functional>
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -40,6 +41,7 @@ DEFINE_bool(extract_log, false, "Enable log subset extraction.");
 DEFINE_bool(extract_images, false, "Enable image extraction to individual files.");
 DEFINE_bool(extract_imu, false, "Enable IMU extraction to individual files.");
 DEFINE_bool(extract_posys, false, "Enable Posys extraction to individual files.");
+DEFINE_bool(make_euroc, false, "Create EuRoC-style dataset from log.");
 DEFINE_string(extract_types, "",
               "Comma-separated list of types to extract from log. "
               "Options include \"cam\", \"imu\", and \"posys\".");
@@ -116,7 +118,7 @@ inline hal::MessageType MsgTypeForString(const std::string& str) {
     {"posys", hal::Msg_Type_Posys},
   };
   auto it = kTypeStrings.find(str);
-  if(it != kTypeStrings.end()) {
+  if (it != kTypeStrings.end()) {
     LOG(INFO) << "Type string '" << str
               << "' does not match a known data type";
   }
@@ -181,6 +183,68 @@ inline void SaveImage(const std::string& out_dir,
   } else {
     LOG(FATAL) << "Input image type not supported for extraction.";
   }
+}
+
+void ExtractImuEuRoC() {
+  mkdir((FLAGS_out + "/imu0").c_str(), 0755);
+  std::ofstream imu_file(FLAGS_out + "/imu0/data.csv", std::ios_base::trunc);
+
+  static const int kNoRange = -1;
+
+  int frame_min = kNoRange, frame_max = kNoRange;
+  std::vector<int> frames;
+  Split(TrimQuotes(FLAGS_extract_frame_range), ',', &frames);
+  if (!frames.empty()) {
+    CHECK_EQ(2, frames.size()) << "extract_frame_range must be frame PAIR";
+    frame_min = frames[0];
+    frame_max = frames[1];
+    CHECK_LE(frame_min, frame_max)
+        << "Minimum frame index must be <= than max frame index.";
+  }
+
+  hal::Reader reader(FLAGS_in);
+  reader.Enable(hal::Msg_Type_IMU);
+
+  int idx = 0;
+  std::unique_ptr<hal::Msg> msg;
+  while (frame_min != kNoRange && idx < frame_min) {
+    if ((msg = reader.ReadMessage()) && msg->has_camera()) {
+      ++idx;
+    }
+  }
+
+  imu_file << "#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],"
+    "w_RS_S_z [rad s^-1],a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],"
+    "a_RS_S_z [m s^-2]" << std::endl;
+
+  while ((frame_max == kNoRange ||
+          idx <= frame_max) &&
+         (msg = reader.ReadMessage())) {
+    if (msg->has_imu()) {
+      const hal::ImuMsg& imu_msg = msg->imu();
+      imu_file << static_cast<uint64_t>(1e9*imu_msg.system_time()) << ", ";
+      if (imu_msg.has_gyro()) {
+        // Write the accel to the accel csv
+        imu_file  << imu_msg.gyro().data(0) << ", " <<
+          imu_msg.gyro().data(1) << ", " <<
+          imu_msg.gyro().data(2) << ", ";
+      } else {
+        imu_file << "nan, nan, nan, ";
+      }
+
+      if (imu_msg.has_accel()) {
+        // Write the accel to the accel csv
+        imu_file  << imu_msg.accel().data(0) << ", " <<
+          imu_msg.accel().data(1) << ", " <<
+          imu_msg.accel().data(2) << std::endl;
+      } else {
+        imu_file << "nan, nan, nan" << std::endl;
+      }
+
+      ++idx;
+    }
+  }
+  imu_file.close();
 }
 
 /** Extracts imu out of a log file. */
@@ -327,6 +391,66 @@ void ExtractPosys() {
   }
 }
 
+void ExtractImagesEuRoC() {
+  static const int kNoRange = -1;
+  uint32_t num_channels = 0;
+  std::vector<std::ofstream> ts_files;
+
+  int frame_min = kNoRange, frame_max = kNoRange;
+  std::vector<int> frames;
+  Split(TrimQuotes(FLAGS_extract_frame_range), ',', &frames);
+  if (!frames.empty()) {
+    CHECK_EQ(2, frames.size()) << "extract_frame_range must be frame PAIR";
+    frame_min = frames[0];
+    frame_max = frames[1];
+    CHECK_LE(frame_min, frame_max)
+        << "Minimum frame index must be <= than max frame index.";
+  }
+
+  hal::Reader reader(FLAGS_in);
+  reader.Enable(hal::Msg_Type_Camera);
+
+  int idx = 0;
+  std::unique_ptr<hal::Msg> msg;
+  while (frame_min != kNoRange && idx < frame_min) {
+    if ((msg = reader.ReadMessage()) && msg->has_camera()) {
+      ++idx;
+    }
+  }
+
+  while ((frame_max == kNoRange ||
+          idx <= frame_max) &&
+         (msg = reader.ReadMessage())) {
+    if (msg->has_camera()) {
+      const hal::CameraMsg& cam_msg = msg->camera();
+      for (; num_channels < cam_msg.image_size(); num_channels++) {
+        std::ostringstream cam_dir;
+        cam_dir << FLAGS_out << "/cam" << num_channels;
+        mkdir(cam_dir.str().c_str(), 0755);
+        cam_dir << "/data";
+        mkdir(cam_dir.str().c_str(), 0755);
+        cam_dir << ".csv";
+        ts_files.push_back(std::ofstream(cam_dir.str().c_str(),
+              std::ios_base::trunc));
+      }
+      std::ostringstream ts;
+      ts << static_cast<uint64_t>(1e9*cam_msg.system_time());
+      for (int ii = 0; ii < cam_msg.image_size(); ++ii) {
+        ts_files[ii] << ts.str().c_str() << "," << ts.str().c_str() << ".png" << std::endl;
+        std::ostringstream filename;
+        filename << FLAGS_out << "/cam" << ii << "/data/" << ts.str().c_str() << ".png";
+        const hal::ImageMsg& img_msg = cam_msg.image(ii);
+        cv::Mat cv_image = hal::WriteCvMat(img_msg);
+        cv::imwrite(filename.str().c_str(), cv_image);
+      }
+      ++idx;
+    }
+  }
+  for (uint32_t i=0; i < num_channels; i++) {
+    ts_files[i].close();
+  }
+}
+
 /** Extracts single images out of a log file. */
 void ExtractImages() {
   static const int kNoRange = -1;
@@ -458,7 +582,7 @@ int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   if (FLAGS_extract_log + FLAGS_extract_images + FLAGS_extract_imu +
-      + FLAGS_extract_posys + !FLAGS_cat_logs.empty() != 1) {
+      + FLAGS_extract_posys + !FLAGS_cat_logs.empty() + FLAGS_make_euroc != 1) {
     LOG(FATAL) << "Must choose one logtool task.";
   }
 
@@ -481,7 +605,12 @@ int main(int argc, char *argv[]) {
   } else if (!FLAGS_cat_logs.empty()) {
     CHECK(!FLAGS_out.empty()) << "Output file required for extraction.";
     CatLogs();
+  } else if (FLAGS_make_euroc) {
+    CHECK(!FLAGS_out.empty()) << "Output file required for extraction.";
+    ExtractImuEuRoC();
+    ExtractImagesEuRoC();
   }
+
 
   return 0;
 }
